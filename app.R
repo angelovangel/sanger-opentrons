@@ -34,6 +34,11 @@ tab1 <- fluidRow(
       ))
 )
 
+tab2 <- fluidRow(
+  box(width = 12, status = "info", solidHeader = FALSE, title = "Opentrons protocol preview", collapsible = F,
+      verbatimTextOutput('protocol_preview')
+  ))
+
 ui <- dashboardPage(
   #useShinyalert(),
   
@@ -42,13 +47,16 @@ ui <- dashboardPage(
   body = dashboardBody(
     tabsetPanel(
       tabPanel(title = "Enter samples", icon = icon("vials"),
-               tab1
-      )
+               tab1),
+      tabPanel(title = "Opentrons script preview", icon = icon('list'),
+               tab2)
     )
   )
 )
 
 server = function(input, output, session) {
+  ### read template
+  protocol_template <- readLines('sanger-otp-template.py', warn = F)
   
   # REACTIVES
   hot <- reactive({
@@ -68,8 +76,40 @@ server = function(input, output, session) {
         well_ids_column = 'dest_well', columns_to_display = c('label')
       )
     } else {
-      plater::view_plate(make_dest(), well_ids_column = 'dest_well', columns_to_display = c('sample_name'))
+      plater::view_plate(make_dest() %>% mutate(label = dest_well), well_ids_column = 'dest_well', columns_to_display = c('label'))
     }
+  })
+  
+  # CORE 
+  myvalues <- reactive({
+    # use only ones where there is sample name and source type selected
+    sourcewells1 <- wells_colwise[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = ' ')
+    sourcewells2 <- wells_colwise[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = ' ')
+    sourcewells3 <- tuberack_wells[hot()$bcl_primer != ''] %>% str_replace_na(replacement = ' ')
+      
+    volume1 <- rep(10, 96)[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = '0')
+    volume2 <- rep(10, 96)[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = '0')
+    volume3 <- rep(5, 96)[hot()$bcl_primer != ''] %>% str_replace_na(replacement = '0') 
+    # see this how it works
+    # rep(1, 96)[match(c('barcode03', '', '', 'barcode01'), barcodes)]
+    
+    c(
+      str_flatten(sourcewells1, collapse = "','"),  
+      str_flatten(volume1, collapse = ", "),
+      str_flatten(sourcewells2, collapse = "','"),
+      str_flatten(volume2, collapse = ", "),
+      str_flatten(sourcewells3, collapse = "','"),
+      str_flatten(volume3, collapse = ", ")
+    ) 
+  })
+  
+  myprotocol <- reactive({
+    str_replace(protocol_template, 'sourcewells1=.*', paste0("sourcewells1=['", myvalues()[1], "']")) %>%
+    str_replace('volume1=.*', paste0('volume1=[', myvalues()[2], ']')) %>%
+    str_replace('sourcewells2=.*', paste0("sourcewells2=['", myvalues()[3], "']")) %>%
+    str_replace('volume2=.*', paste0('volume2=[', myvalues()[4], ']')) %>%
+    str_replace('sourcewells3=.*', paste0("sourcewells3=['", myvalues()[5], "']")) %>%
+    str_replace('volume3=.*', paste0('volume3=[', myvalues()[6], ']'))
   })
   
   # RENDERS
@@ -94,6 +134,10 @@ server = function(input, output, session) {
                 minWidth = 50, html = TRUE, style = list(fontSize = '80%'),
                 headerStyle = list(background = "#f7f7f8"))
               )
+  })
+  
+  output$protocol_preview <- renderPrint({
+    write(myprotocol(), file = "")
   })
 }
 
