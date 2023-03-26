@@ -83,10 +83,11 @@ server = function(input, output, session) {
   # CORE 
   myvalues <- reactive({
     # use only ones where there is sample name and source type selected
-    sourcewells1 <- wells_colwise[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = ' ')
-    sourcewells2 <- wells_colwise[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = ' ')
+    sourcewells1 <- hot()$src_well[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = ' ')
+    sourcewells2 <- hot()$src_well[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = ' ')
+    
     sourcewells3 <- tuberack_wells[hot()$bcl_primer != ''] %>% str_replace_na(replacement = ' ')
-      
+     
     volume1 <- rep(10, 96)[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = '0')
     volume2 <- rep(10, 96)[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = '0')
     volume3 <- rep(5, 96)[hot()$bcl_primer != ''] %>% str_replace_na(replacement = '0') 
