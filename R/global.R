@@ -1,3 +1,5 @@
+library(dplyr)
+library(stringr)
 
 wells_colwise <- lapply(1:12, function(x) {str_c(LETTERS[1:8], x)}) %>% unlist()
 tuberack_wells <- lapply(1:6, function(x) {str_c(LETTERS[1:4], x)}) %>% unlist()

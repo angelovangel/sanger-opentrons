@@ -1,13 +1,13 @@
+library(dplyr)
+library(stringr)
 library(rhandsontable)
-library(shiny)
-library(shinydashboard)
 #library(shinyalert)
 library(plater)
 library(tibble)
-library(stringr)
 library(reactable)
-library(dplyr)
 library(rmarkdown)
+library(shiny)
+library(shinydashboard)
 
 # creates base empty dataframe to view and fill later
 make_dest <- function() {
