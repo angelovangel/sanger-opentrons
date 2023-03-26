@@ -11,13 +11,13 @@ library(shinydashboard)
 
 # creates base empty dataframe to view and fill later
 make_dest <- function() {
-  dest <- tibble(src_type = NA, 
+  dest <- tibble(src_type = as.character(NA), 
                  src_well = wells_colwise, 
                  sample_name = as.character(NA), 
                  customer_primer = as.character(NA), 
-                 bcl_primer = NA, 
-                 dest_well = wells_colwise) 
-                 #mycolor = as.character(NA))
+                 bcl_primer = as.character(NA), 
+                 dest_well = wells_colwise)
+                 #mycolor = NA)
   dest
 }
 
@@ -63,7 +63,7 @@ server = function(input, output, session) {
     if(!is.null(input$hot)) {
       as_tibble(hot_to_r(input$hot))
     } else{
-    make_dest()  
+    make_dest()
     }
   })
   
@@ -93,6 +93,10 @@ server = function(input, output, session) {
     # see this how it works
     # rep(1, 96)[match(c('barcode03', '', '', 'barcode01'), barcodes)]
     
+    # set these to 15 when customer primer is used
+    #volume1[!is.na(hot()$customer_primer)] <- 15
+    #volume2[hot()$customer_primer != ''] <- 15
+    
     c(
       str_flatten(sourcewells1, collapse = "','"),  
       str_flatten(volume1, collapse = ", "),
@@ -115,13 +119,13 @@ server = function(input, output, session) {
   # RENDERS
   
   output$hot <- renderRHandsontable({
-    rhandsontable(hot(), 
+    rhandsontable(hot(),
                   rowHeaders = NULL, height = 2800, stretchH = "all") %>%
       hot_col(col = 'src_type', type = 'autocomplete', source = c('strip', 'plate'), strict = T) %>%
       hot_col(col = 'src_well', type = 'dropdown', source = wells_colwise, strict = T) %>%
       hot_col(col = 'bcl_primer', type = 'autocomplete', source = bcl_primers$primer_name) %>%
       hot_col(col = 'dest_well', readOnly = T) %>%
-      hot_cols(colWidths = c(50, 50, 90, 90, 90, 50))
+      hot_cols(colWidths = c(60, 50, 90, 90, 90, 50))
       
   })
   
