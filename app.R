@@ -30,7 +30,9 @@ tab1 <- fluidRow(
                ),
         column(8, 
                tags$p("Reaction plate preview"),
-               reactableOutput('plate'))
+               reactableOutput('plate'),
+               tags$p('hot preview'),
+               reactableOutput('hot_preview'))
       ))
 )
 
@@ -85,14 +87,18 @@ server = function(input, output, session) {
     # use only ones where there is sample name and source type selected
     sourcewells1 <- hot()$src_well[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = ' ')
     sourcewells2 <- hot()$src_well[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = ' ')
-    
-    sourcewells3 <- tuberack_wells[hot()$bcl_primer != ''] %>% str_replace_na(replacement = ' ')
+    # this took  while to figure out, the length of the result is the same as the first arg of match
+    sourcewells3 <- bcl_primers$primer_well[match(hot()$bcl_primer, bcl_primers$primer_name)] %>% str_replace_na(replacement = ' ')
      
     volume1 <- rep(10, 96)[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = '0')
     volume2 <- rep(10, 96)[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = '0')
-    volume3 <- rep(5, 96)[hot()$bcl_primer != ''] %>% str_replace_na(replacement = '0') 
-    # see this how it works
-    # rep(1, 96)[match(c('barcode03', '', '', 'barcode01'), barcodes)]
+    volume3 <- rep(5, 96)[hot()$sample_name != '' & hot()$bcl_primer != ''] %>% str_replace_na(replacement = '0') 
+    
+    premix_pos1 <- which(hot()$customer_primer != '' & hot()$sample_name != '' & hot()$src_type == 'plate')
+    volume1[premix_pos1] <- 15
+    
+    premix_pos2 <- which(hot()$customer_primer != '' & hot()$sample_name != '' & hot()$src_type == 'strip')
+    volume2[premix_pos2] <- 15
     
     # set these to 15 when customer primer is used
     #volume1[!is.na(hot()$customer_primer)] <- 15
@@ -139,6 +145,10 @@ server = function(input, output, session) {
                 minWidth = 50, html = TRUE, style = list(fontSize = '80%'),
                 headerStyle = list(background = "#f7f7f8"))
               )
+  })
+  
+  output$hot_preview <- renderReactable({
+    reactable(hot())
   })
   
   output$protocol_preview <- renderPrint({
