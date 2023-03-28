@@ -85,6 +85,7 @@ server = function(input, output, session) {
   # CORE 
   myvalues <- reactive({
     # use only ones where there is sample name and source type selected
+    
     sourcewells1 <- hot()$src_well[hot()$sample_name != '' & hot()$src_type == 'plate'] %>% str_replace_na(replacement = ' ')
     sourcewells2 <- hot()$src_well[hot()$sample_name != '' & hot()$src_type == 'strip'] %>% str_replace_na(replacement = ' ')
     # this took  while to figure out, the length of the result is the same as the first arg of match
@@ -106,6 +107,10 @@ server = function(input, output, session) {
     
     c(
       str_flatten(sourcewells1, collapse = "','"),  
+      # ! this collapses NA vector to 1 NA !!! See:
+      # rep(' ', 10) %>% str_flatten(collapse = ', ')
+      # rep(NA, 10) %>% str_flatten(collapse = ', ')
+      
       str_flatten(volume1, collapse = ", "),
       str_flatten(sourcewells2, collapse = "','"),
       str_flatten(volume2, collapse = ", "),
