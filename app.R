@@ -11,7 +11,7 @@ library(shinydashboard)
 
 # creates base empty dataframe to view and fill later
 make_dest <- function() {
-  dest <- tibble(src_type = 'plate', 
+  dest <- tibble(src_type = '', 
                  src_well = "", 
                  sample_name = "", 
                  customer_primer = "", 
@@ -25,10 +25,10 @@ tab1 <- fluidRow(
   box(width = 12, height = 2800, status = "info", solidHeader = FALSE,
       title = "", collapsible = F,
       fluidRow(
-        column(4, tags$p("Source plate/strip - enter sample information here"), 
+        column(5, tags$p("Source plate/strip - enter sample information here"), 
                rHandsontableOutput('hot')
                ),
-        column(8, 
+        column(7, 
                tags$p("Reaction plate preview"),
                reactableOutput('plate'),
                tags$p('hot preview'),
@@ -86,36 +86,33 @@ server = function(input, output, session) {
   myvalues <- reactive({
     # use only ones where there is sample name and source type selected
     # this avoids a bug where deleting a well did not leave an empty entry in the vector
+    i <-  which(hot()$src_type %in% 'plate')
+    j <-  which(hot()$src_type %in% 'strip')
     sourcewells1 <- rep('', 96)
-    sourcewells1[hot()$src_type == 'plate'] <- hot()$src_well
-    
     sourcewells2 <- rep('', 96)
-    sourcewells2[hot()$src_type == 'strip'] <- hot()$src_well
+    sourcewells1[i] <- hot()$src_well[i]
+    sourcewells2[j] <- hot()$src_well[j]
     
     # this took  while to figure out, the length of the result is the same as the first arg of match
     sourcewells3 <- bcl_primers$primer_well[match(hot()$bcl_primer, bcl_primers$primer_name)] %>% str_replace_na(replacement = ' ')
     
     # when something is deleted in hot() it becomes ''
     volume1 <- rep(0, 96)
-    volume1[hot()$bcl_primer != ''] <- 10
-    volume1[hot()$customer_primer != ''] <- 15
-    
+    k <- which(hot()$bcl_primer %in% bcl_primers$primer_name & hot()$src_type == 'plate')
+    l <- which(hot()$customer_primer != '' & hot()$src_type == 'plate')
+    volume1[k] <- 10
+    volume1[l] <- 15
     
     volume2 <- rep(0, 96)
-    volume2[hot()$bcl_primer != ''] <- 10
-    volume2[hot()$customer_primer != ''] <- 15
+    m <- which(hot()$bcl_primer %in% bcl_primers$primer_name & hot()$src_type == 'strip')
+    n <- which(hot()$customer_primer != '' & hot()$src_type == 'strip')
+    volume2[m] <- 10
+    volume2[n] <- 15
     
-    volume3 <- rep(5, 96)[hot()$sample_name != '' & hot()$bcl_primer != ''] %>% str_replace_na(replacement = '0') 
+    volume3 <- rep(0, 96)
+    o <- which(hot()$bcl_primer != '')
+    volume3[o] <- 5
     
-    # premix_pos1 <- which(hot()$customer_primer != '' & hot()$sample_name != '' & hot()$src_type == 'plate')
-    # volume1[premix_pos1] <- 15
-    # 
-    # premix_pos2 <- which(hot()$customer_primer != '' & hot()$sample_name != '' & hot()$src_type == 'strip')
-    # volume2[premix_pos2] <- 15
-    
-    # set these to 15 when customer primer is used
-    #volume1[!is.na(hot()$customer_primer)] <- 15
-    #volume2[hot()$customer_primer != ''] <- 15
     
     c(
       str_flatten(sourcewells1, collapse = "','"),  
@@ -146,7 +143,7 @@ server = function(input, output, session) {
     rhandsontable(hot(),
                   rowHeaders = NULL, height = 2800, stretchH = "all") %>%
       hot_col(col = 'src_type', type = 'dropdown', source = c('strip', 'plate'), strict = T) %>%
-      hot_validate_character('src_type', choices = c('strip', 'plate'), allowInvalid = F) %>%
+      #hot_validate_character('src_type', choices = c('strip', 'plate'), allowInvalid = F) %>%
       hot_col(col = 'src_well', type = 'dropdown', source = wells_colwise, strict = T) %>%
       hot_col(col = 'bcl_primer', type = 'autocomplete', source = bcl_primers$primer_name) %>%
       hot_col(col = 'dest_well', readOnly = T) %>%
@@ -167,7 +164,7 @@ server = function(input, output, session) {
   
   output$hot_preview <- renderText({
     #hot()$src_well
-    myvalues()[2]
+      myvalues()[2]
   })
   
   output$protocol_preview <- renderPrint({
