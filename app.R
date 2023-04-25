@@ -8,6 +8,7 @@ library(reactable)
 library(rmarkdown)
 library(shiny)
 library(shinydashboard)
+library(curl)
 
 # creates base empty dataframe to view and fill later
 make_dest <- function() {
@@ -58,7 +59,14 @@ ui <- dashboardPage(
 
 server = function(input, output, session) {
   ### read template
-  protocol_template <- readLines('sanger-otp-template.py', warn = F)
+  protocol_url <- "https://raw.githubusercontent.com/angelovangel/opentrons/main/protocols/01-Sanger-setup-BCL.py"
+  
+  if (curl::has_internet()) {
+    protocol_template <- readLines(url(protocol_url), warn = F)
+  } else {
+    protocol_template <- readLines("sanger-otp-template.py", warn = F)
+  }
+  
   
   # REACTIVES
   hot <- reactive({
