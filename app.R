@@ -9,6 +9,7 @@ library(rmarkdown)
 library(shiny)
 library(shinydashboard)
 library(curl)
+library(waiter)
 
 # creates base empty dataframe to view and fill later
 make_dest <- function() {
@@ -32,8 +33,11 @@ tab1 <- fluidRow(
         column(7, 
                tags$p("Reaction plate preview"),
                reactableOutput('plate'),
-               tags$p('hot preview'),
-               verbatimTextOutput('hot_preview'))
+               downloadButton('download', 'Download Opentrons script', style = 'margin-top:25px'),
+               downloadButton('download_samples', 'Download sample sheet', style = 'margin-top:25px')
+               #tags$p('hot preview'),
+               #verbatimTextOutput('hot_preview')
+               )
       ))
 )
 
@@ -42,8 +46,14 @@ tab2 <- fluidRow(
       verbatimTextOutput('protocol_preview')
   ))
 
+tab3 <- fluidRow(
+  box(width = 12, status = 'info', solidHeader = FALSE, title = "Deck view", collapsible = F,
+      htmlOutput('deck'))
+)
+
 ui <- dashboardPage(
-  #useShinyalert(),
+  useWaiter(),
+  #waiterOnBusy(),
   
   header = dashboardHeader(title = 'Generate Sanger Opentrons protocol', titleWidth = 800),
   sidebar = dashboardSidebar(disable = T),
@@ -52,7 +62,9 @@ ui <- dashboardPage(
       tabPanel(title = "Enter samples", icon = icon("vials"),
                tab1),
       tabPanel(title = "Opentrons script preview", icon = icon('list'),
-               tab2)
+               tab2),
+      tabPanel(title = "Deck view", icon = icon('table-cells'), 
+      tab3)
     )
   )
 )
@@ -62,7 +74,11 @@ server = function(input, output, session) {
   protocol_url <- "https://raw.githubusercontent.com/angelovangel/opentrons/main/protocols/01-Sanger-setup-BCL.py"
   
   if (curl::has_internet()) {
-    protocol_template <- readLines(url(protocol_url), warn = F)
+    waiter_show(html = spin_wave())
+    con <- url(protocol_url)
+    protocol_template <- readLines(con, warn = F)
+    close(con)
+    waiter_hide()
   } else {
     protocol_template <- readLines("sanger-otp-template.py", warn = F)
   }
@@ -102,7 +118,7 @@ server = function(input, output, session) {
     sourcewells2[j] <- hot()$src_well[j]
     
     # this took  while to figure out, the length of the result is the same as the first arg of match
-    sourcewells3 <- bcl_primers$primer_well[match(hot()$bcl_primer, bcl_primers$primer_name)] %>% str_replace_na(replacement = ' ')
+    sourcewells3 <- bcl_primers$primer_well[match(hot()$bcl_primer, bcl_primers$primer_name)] %>% str_replace_na(replacement = '')
     
     # when something is deleted in hot() it becomes ''
     volume1 <- rep(0, 96)
@@ -170,14 +186,29 @@ server = function(input, output, session) {
               )
   })
   
-  output$hot_preview <- renderText({
-    #hot()$src_well
-      myvalues()[2]
-  })
+  # output$hot_preview <- renderText({
+  #   #hot()$src_well
+  #     myvalues()[2]
+  # })
   
   output$protocol_preview <- renderPrint({
     write(myprotocol(), file = "")
   })
+  
+  output$deck <- renderUI({
+    HTML('<img src="deck.png" height="600">')
+  })
+  
+  ### Downloads
+  output$download <- downloadHandler(
+    filename = function() {
+      paste0(format(Sys.time(), "%Y%m%d-%H%M%S"), '-sanger-protocol.py')
+    },
+    content = function(con) {
+      write(myprotocol(), con)
+    }
+  )
+  
 }
 
 shinyApp(ui, server)
