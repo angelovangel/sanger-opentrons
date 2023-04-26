@@ -10,6 +10,7 @@ library(shiny)
 library(shinydashboard)
 library(curl)
 library(waiter)
+#library(xlsx)
 
 # creates base empty dataframe to view and fill later
 make_dest <- function() {
@@ -206,6 +207,15 @@ server = function(input, output, session) {
     },
     content = function(con) {
       write(myprotocol(), con)
+    }
+  )
+  
+  output$download_samples <- downloadHandler(
+    filename = function() {
+      paste0(format(Sys.time(), "%Y%m%d-%H%M%S"), '-sanger-samples.csv')
+    },
+    content = function(con) {
+      write.csv(hot(), con, row.names = F)
     }
   )
   
