@@ -18,8 +18,9 @@ make_dest <- function() {
                  src_well = "", 
                  sample_name = "", 
                  customer_primer = "", 
-                 bcl_primer = as.character(NA), 
-                 dest_well = wells_colwise)
+                 bcl_primer = "", #as.character(NA), 
+                 dest_well = wells_colwise, 
+                 primer_check = "")
                  #mycolor = NA)
   dest
 }
@@ -88,7 +89,8 @@ server = function(input, output, session) {
   # REACTIVES
   hot <- reactive({
     if(!is.null(input$hot)) {
-      as_tibble(hot_to_r(input$hot))
+      as_tibble(hot_to_r(input$hot)) %>%
+        mutate(primer_check = if_else(customer_primer != '' & bcl_primer != '', 'red', 'black'))
     } else{
     make_dest()
     }
@@ -96,14 +98,13 @@ server = function(input, output, session) {
   
   plate <- reactive({
     if(!is.null(input$hot)) {
-      df <- hot() %>% mutate(label = str_c(sample_name, "<br>", bcl_primer))
+      df <- hot() %>% mutate(label = str_c(sample_name, "<br>", bcl_primer, " ",customer_primer))
       plater::view_plate(
         #hot_to_r(input$hot) , 
         df,
-        well_ids_column = 'dest_well', columns_to_display = c('label')
-      )
+        well_ids_column = 'dest_well', columns_to_display = c('label', 'dest_well'), plate_size = 96)
     } else {
-      plater::view_plate(make_dest() %>% mutate(label = dest_well), well_ids_column = 'dest_well', columns_to_display = c('label'))
+      plater::view_plate(make_dest() %>% mutate(label = dest_well), well_ids_column = 'dest_well', columns_to_display = c('label', 'dest_well'), plate_size = 96)
     }
   })
   
@@ -163,9 +164,9 @@ server = function(input, output, session) {
   })
   
   # RENDERS
-  
+
   output$hot <- renderRHandsontable({
-    rhandsontable(hot(),
+    rhandsontable(hot()[, 1:6],
                   rowHeaders = NULL, height = 2800, stretchH = "all") %>%
       hot_col(col = 'src_type', type = 'dropdown', source = c('strip', 'plate'), strict = T) %>%
       #hot_validate_character('src_type', choices = c('strip', 'plate'), allowInvalid = F) %>%
@@ -182,8 +183,22 @@ server = function(input, output, session) {
               bordered = T, compact = T, 
               fullWidth = T, sortable = F,
               defaultColDef = colDef(
-                minWidth = 50, html = TRUE, style = list(fontSize = '80%'),
-                headerStyle = list(background = "#f7f7f8"))
+                minWidth = 50, html = TRUE, #style = list(fontSize = '80%'),
+                headerStyle = list(background = "#f7f7f8"), 
+                # style text red if primer_check on hot() is 1
+                # https://glin.github.io/reactable/articles/conditional-styling.html
+                style = function(value, index, name) {
+                  # match dest well positions from plate to hot
+                  # in plate it is 
+                  mydf <- hot()
+                  wellpos <- plate()$dest_well[[name]][index] #have to select column as [[col]]
+                  # repair A01 to A1 in order to match
+                  wellpos <- str_remove(wellpos, "0(?!$)") # negative look ahead, matches 0 that is not end of line
+                  mycolor <- mydf$primer_check[match(wellpos, mydf$dest_well)]
+                  #print(wellpos)
+                  list(color = mycolor, fontSize = '80%')
+                }
+                )
               )
   })
   
